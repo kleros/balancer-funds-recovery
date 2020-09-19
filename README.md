@@ -37,8 +37,8 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 We will use the pool's `swapExactAmountIn` function. Here is its formula, where:
 - <img src="https://latex.codecogs.com/svg.latex?A_{i}"/> is the amount entering the pool (in PNK)
 - <img src="https://latex.codecogs.com/svg.latex?A_{o}"/> is the amount leaving the pool (in WETH)
-- <img src="https://latex.codecogs.com/svg.latex?B_{i}"/> is the pool's balance of the token entering the pool (WETH)
-- <img src="https://latex.codecogs.com/svg.latex?B_{o}"/> is the pool's balance of the token leaving the pool (PNK)
+- <img src="https://latex.codecogs.com/svg.latex?B_{i}"/> is the pool's balance of the token entering the pool (PNK)
+- <img src="https://latex.codecogs.com/svg.latex?B_{o}"/> is the pool's balance of the token leaving the pool (WETH)
 - <img src="https://latex.codecogs.com/svg.latex?f"/> is the swap fee
 
 <img src="https://latex.codecogs.com/svg.latex?A_{o}=B_{o}\left(1-\left(\frac{B_{i}}{B_{i}+A_{i}\left(1-f\right)}\right)\right)"/>
