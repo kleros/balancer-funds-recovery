@@ -61,6 +61,9 @@ interface BPool {
 */
 
 contract BalancerPoolRecoverer {
+    uint256 constant gasPerIteration = 1;
+    uint256 constant BONE = 10 ** 18;
+
     address owner;
 
     MiniMeToken pnkToken;
@@ -117,16 +120,47 @@ contract BalancerPoolRecoverer {
 
         /* PULL PNK */
         pnkToken.transferFrom(address(bpool), address(this), recoverPNK + tokenAmountIn); // Need to be the controller
+        balancePNK -= recoverPNK + tokenAmountIn;
         bpool.gulp(address(pnkToken));
 
         /* PULL WETH (A.K.A ARBITRATION) */
-        bpool.swapExactAmountIn(
-            address(pnkToken),  // tokenIn
-            tokenAmountIn,      // tokenAmountIn
-            address(wethToken), // tokenOut
-            0,                  // minAmountOut
-            uint256(-1)         // maxPrice
+        uint256 nextAmountIn  = balancePNK / 2;
+        uint256 nextAmountOut = calcOutGivenIn(
+            balancePNK,   // tokenBalanceIn
+            balanceWETH,  // tokenBalanceOut
+            nextAmountIn, // tokenAmountIn
+            swapFee       // swapFee
         );
+        uint256 recovered = nextAmountOut; // Amount of WETH recovered *after* the iteration
+
+        // Repeat as long as
+        //  - there is still WETH to recover, or
+        //  - recovering the next WETH would cost too much gas
+        while (recovered < recoverWETH && nextAmountOut > gasPerIteration * tx.gasprice) {
+            bpool.swapExactAmountIn(
+                address(pnkToken),  // tokenIn
+                nextAmountIn,       // tokenAmountIn
+                address(wethToken), // tokenOut
+                0,                  // minAmountOut
+                uint256(-1)         // maxPrice
+            );
+
+            balancePNK  += nextAmountIn;
+            balanceWETH -= nextAmountOut;
+
+            nextAmountIn  = balancePNK / 2;
+            nextAmountOut = calcOutGivenIn(
+                balancePNK,   // tokenBalanceIn
+                balanceWETH,  // tokenBalanceOut
+                nextAmountIn, // tokenAmountIn
+                swapFee       // swapFee
+            );
+
+            recovered += nextAmountOut;
+        }
+
+        // There is voluntarily no test case if the next swap would recover too much WETH
+        // since we are we are by far the largest LP so this amount is negligible
 
         /* SEND RECOVERED TOKENS */
         pnkToken.transfer(owner, recoverPNK);
@@ -134,5 +168,36 @@ contract BalancerPoolRecoverer {
 
         /* RESTORE CONTROLLER */
         restoreController();
+    }
+
+    // Code taken and adapted from https://github.com/balancer-labs/balancer-core
+    function calcOutGivenIn(
+        uint256 tokenBalanceIn,
+        uint256 tokenBalanceOut,
+        uint256 tokenAmountIn,
+        uint256 swapFee
+    )
+        internal pure returns (uint256)
+    {
+        uint256 adjustedIn = bmul(tokenAmountIn, BONE - swapFee);
+        uint256 y = bdiv(tokenBalanceIn, tokenBalanceIn + adjustedIn);
+        uint256 bar = BONE - y;
+        return bmul(tokenBalanceOut, bar);
+    }
+
+    function bmul(uint256 a, uint256 b)
+        internal pure returns (uint256)
+    {
+        uint256 c0 = a * b;
+        uint256 c1 = c0 + (BONE / 2);
+        return c1 / BONE;
+    }
+
+    function bdiv(uint256 a, uint256 b)
+        internal pure returns (uint256)
+    {
+        uint256 c0 = a * BONE;
+        uint256 c1 = c0 + (b / 2);
+        return c1 / b;
     }
 }

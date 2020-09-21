@@ -55,6 +55,9 @@ So the equation can be rewritten as
 <img src="https://latex.codecogs.com/svg.latex?1-\frac{\$_{o}}{B_{o}}=\frac{B_{i}-\left(\$_{i}+A_{i}\right)}{B_{i}-\left(\$_{i}+fA_{i}\right)}"/>
 <img src="https://latex.codecogs.com/svg.latex?A_{i}=\frac{\$_{o}\left(B_{i}-\$_{i}\right)}{B_{o}-f\left(B_{o}-\$_{o}\right)}"/>
 
+However, the pool only allows to swap for more than half of the pool's current balance *in* (or a third *out*), so if <img src="https://latex.codecogs.com/svg.latex?A_{i}"/> exceeds this threshold, we have to make multiple smaller swaps. As we are the (by far) largest LP we know for sure that we'll exceed this threshold.
+This leads to an exponential decay in recoverings.
+
 # Effects
 
 As liquidity will be removed without burning the associated liquidity token (BPT), each BPT will be worth less (-96% at the time of writing), that's why we need to tell this pool's BPT holders to withdraw their funds before launching the attack.
