@@ -72,7 +72,7 @@ interface BPool {
 */
 
 contract BalancerPoolRecoverer {
-    uint256 constant gasPerIteration = 1;
+    uint256 constant gasPerIteration = 92294;
     uint256 constant BONE = 10 ** 18;
 
     address owner;
