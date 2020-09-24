@@ -91,16 +91,6 @@ contract BalancerPoolRecoverer {
         controller = _controller;
     }
 
-    // EMERGENCY
-    function arbitraryDelegatecall(address payable _target, bytes calldata _data) external payable onlyOwner {
-        (bool success,) = _target.delegatecall(_data);
-        require(success);
-    }
-    function arbitraryCall(address payable _target, uint256 _value, bytes calldata _data) external payable onlyOwner {
-        (bool success,) = _target.call.value(_value)(_data);
-        require(success);
-    }
-
     function restoreController() public onlyOwner {
         pnkToken.changeController(address(controller));
     }
