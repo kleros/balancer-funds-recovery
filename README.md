@@ -32,32 +32,6 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Transfer PNK's controller rights
 1. Execute the attack
 
-# Computations
-
-We will use the pool's `swapExactAmountIn` function. Here is its formula, where:
-- <img src="https://latex.codecogs.com/svg.latex?A_{i}"/> is the amount entering the pool (in PNK)
-- <img src="https://latex.codecogs.com/svg.latex?A_{o}"/> is the amount leaving the pool (in WETH)
-- <img src="https://latex.codecogs.com/svg.latex?B_{i}"/> is the pool's balance of the token entering the pool (PNK)
-- <img src="https://latex.codecogs.com/svg.latex?B_{o}"/> is the pool's balance of the token leaving the pool (WETH)
-- <img src="https://latex.codecogs.com/svg.latex?f"/> is the swap fee
-
-<img src="https://latex.codecogs.com/svg.latex?A_{o}=B_{o}\left(1-\frac{B_{i}}{B_{i}+A_{i}\left(1-f\right)}\right)"/>
-
-Let <img src="https://latex.codecogs.com/svg.latex?\$_{i}"/> (resp. <img src="https://latex.codecogs.com/svg.latex?\$_{o}"/>) be the amount of PNK (resp. WETH) to recover.
-
-We thus have <img src="https://latex.codecogs.com/svg.latex?{B'}_{i}=B_{i}-\left(A_{i}+\$_{i}\right)"/> the adjusted balance of PNK after we pull funds from the pool.
-Also we have <img src="https://latex.codecogs.com/svg.latex?\$_{o}=A_{o}"/>.
-
-So the equation can be rewritten as
-
-<img src="https://latex.codecogs.com/svg.latex?\$_{o}=B_{o}\left(1-\frac{B_{i}-\left(\$_{i}+A_{i}\right)}{B_{i}-\left(\$_{i}+A_{i}\right)+A_{i}\left(1-f\right)}\right)"/>
-<img src="https://latex.codecogs.com/svg.latex?\$_{o}=B_{o}\left(1-\frac{B_{i}-\left(\$_{i}+A_{i}\right)}{B_{i}-\left(\$_{i}+fA_{i}\right)}\right)"/>
-<img src="https://latex.codecogs.com/svg.latex?1-\frac{\$_{o}}{B_{o}}=\frac{B_{i}-\left(\$_{i}+A_{i}\right)}{B_{i}-\left(\$_{i}+fA_{i}\right)}"/>
-<img src="https://latex.codecogs.com/svg.latex?A_{i}=\frac{\$_{o}\left(B_{i}-\$_{i}\right)}{B_{o}-f\left(B_{o}-\$_{o}\right)}"/>
-
-However, the pool only allows to swap for more than half of the pool's current balance *in* (or a third *out*), so if <img src="https://latex.codecogs.com/svg.latex?A_{i}"/> exceeds this threshold, we have to make multiple smaller swaps. As we are the (by far) largest LP we know for sure that we'll exceed this threshold.
-This leads to an exponential decay in recoverings.
-
 # Effects
 
 As liquidity will be removed without burning the associated liquidity token (BPT), each BPT will be worth less (-96% at the time of writing), that's why we need to tell this pool's BPT holders to withdraw their funds before launching the attack.
