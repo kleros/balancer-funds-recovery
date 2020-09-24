@@ -1,6 +1,8 @@
 pragma solidity 0.5.12;
 
 interface MiniMeToken {
+    function approve(address _spender, uint256 _amount) external returns (bool success);
+
     function balanceOf(address _owner) external view returns (uint256 balance);
 
     function transferFrom(
@@ -103,6 +105,14 @@ contract BalancerPoolRecoverer {
         pnkToken.changeController(address(controller));
     }
 
+    // Since the attack contract is PNK's controller, it has to allow transfers and approvals
+    function onTransfer(address _from, address _to, uint256 _amount) public returns (bool) {
+        return true;
+    }
+    function onApprove(address _owner, address _spender, uint _amount) public returns (bool) {
+        return true;
+    }
+
     function attack() external onlyOwner {
         /* QUERY POOL STATE */
         uint256 totalSupply = bpool.totalSupply();
@@ -122,6 +132,7 @@ contract BalancerPoolRecoverer {
         pnkToken.transferFrom(address(bpool), address(this), recoverPNK + tokenAmountIn); // Need to be the controller
         balancePNK -= recoverPNK + tokenAmountIn;
         bpool.gulp(address(pnkToken));
+        pnkToken.approve(address(bpool), tokenAmountIn);
 
         /* PULL WETH (A.K.A ARBITRATION) */
         uint256 nextAmountIn  = balancePNK / 2;
