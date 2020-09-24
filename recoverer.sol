@@ -17,6 +17,7 @@ interface MiniMeToken {
 }
 
 interface WETH9 {
+    function balanceOf(address) external view returns (uint256);
     function transfer(address dst, uint256 wad) external returns (bool);
 }
 
@@ -24,6 +25,7 @@ interface KlerosLiquid {}
 
 interface BPool {
     function totalSupply() external view returns (uint256);
+    function balanceOf(address whom) external view returns (uint256);
     function getBalance(address token) external view returns (uint256);
     function getSwapFee() external view returns (uint256);
     function gulp(address token) external;
@@ -164,8 +166,8 @@ contract BalancerPoolRecoverer {
         // since we are we are by far the largest LP so this amount is negligible
 
         /* SEND RECOVERED TOKENS */
-        pnkToken.transfer(owner, recoverPNK);
-        wethToken.transfer(owner, recoverWETH);
+        pnkToken.transfer(owner, pnkToken.balanceOf(address(this)));
+        wethToken.transfer(owner, wethToken.balanceOf(address(this)));
 
         /* RESTORE CONTROLLER */
         restoreController();
