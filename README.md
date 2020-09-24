@@ -35,3 +35,8 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 # Effects
 
 As liquidity will be removed without burning the associated liquidity token (BPT), each BPT will be worth less (-96% at the time of writing), that's why we need to tell this pool's BPT holders to withdraw their funds before launching the attack.
+
+# Test
+
+You need `nodejs` and the `web3` library.
+The test script assumes you have a HTTP provider running at `http://localhost:7545` (typically ganache) with a list of funded account.
