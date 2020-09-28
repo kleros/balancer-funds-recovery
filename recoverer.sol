@@ -34,6 +34,7 @@ contract BPool is IERC20 {
         uint256 tokenAmountOut,
         uint256 maxPrice
     ) external returns (uint256 tokenAmountIn, uint256 spotPriceAfter);
+    function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) external;
 }
 
 contract KlerosGovernor {}
@@ -66,14 +67,21 @@ contract KlerosGovernor {}
 
 contract BalancerPoolRecoverer {
     uint256 constant gasPerIteration = 92294;
-    uint256 constant BONE = 10 ** 18;
+    uint256 constant BONE = 10 ** 18; // Represents balancer's one (1) in fixed point arithmetic
 
+    bool attackDone;
+    uint256 public balanceBPT;
+    uint256 newBalanceBPT;
+    mapping(address => uint256) public lpBalance; // Recorded balance of a liquidity provider
+    address[] lpList;
 
     KlerosGovernor governor;
     MiniMeToken pnkToken;
     WETH9 wethToken;
     BPool bpool;
+    BPool newBpool;
     KlerosLiquid controller;
+    address beneficiary;
 
     modifier onlyGovernor() {
         require(msg.sender == address(governor));
@@ -85,13 +93,51 @@ contract BalancerPoolRecoverer {
         MiniMeToken _pnkToken,
         WETH9 _wethToken,
         BPool _bpool,
-        KlerosLiquid _controller
+        BPool _newBpool,
+        KlerosLiquid _controller,
+        address _beneficiary
     ) public {
         governor = _governor;
         pnkToken = _pnkToken;
         wethToken = _wethToken;
         bpool = _bpool;
+        newBpool = _newBpool;
         controller = _controller;
+        beneficiary = _beneficiary;
+    }
+
+    function registerLP(address lp) external {
+        require(!attackDone);
+        require(lp != address(bpool)); // Blacklist
+
+        if (bpool.balanceOf(lp) != 0 && lpBalance[lp] == 0) {
+            lpBalance[lp] = 1; // Actual balance will be recorded in the recovery transaction (in the attack function)
+            lpList.push(lp);
+        }
+    }
+
+    function restoreLP(uint256 iterations) external {
+        require(attackDone);
+
+        uint256 actualIterations = lpList.length;
+        if (actualIterations > iterations)
+            actualIterations = iterations;
+
+        address receiver;
+        uint256 amount;
+        for (uint256 i = 0; i < actualIterations; i++) {
+            receiver = lpList[lpList.length - 1];
+            lpList.pop();
+            amount = newBalanceBPT * lpBalance[receiver] / balanceBPT;
+            newBpool.transfer(receiver, amount);
+        }
+
+        // After every LP has been reimbursed, send remaining funds to Coopérative Kleros
+        if (lpList.length == 0) {
+            newBpool.transfer(beneficiary, newBpool.balanceOf(address(this)));
+            wethToken.transfer(beneficiary, wethToken.balanceOf(address(this)));
+            pnkToken.transfer(beneficiary, pnkToken.balanceOf(address(this)));
+        }
     }
 
     // In case the attack cannot be executed
@@ -103,41 +149,44 @@ contract BalancerPoolRecoverer {
     function onTransfer(address _from, address _to, uint256 _amount) public returns (bool) {
         return true;
     }
-    function onApprove(address _owner, address _spender, uint _amount) public returns (bool) {
+    function onApprove(address _owner, address _spender, uint256 _amount) public returns (bool) {
         return true;
     }
 
     function attack() external onlyGovernor {
+        attackDone = true;
+
         /* QUERY POOL STATE */
-        uint256 totalSupply      = bpool.totalSupply();
-        uint256 balanceBPT       = bpool.balanceOf(address(bpool));
-        uint256 balancePNK       = pnkToken.balanceOf(address(bpool));
-        uint256 balanceWETH      = bpool.getBalance(address(wethToken));
-        uint256 finalBalancePNK  = balancePNK - balancePNK * balanceBPT / totalSupply;
-        uint256 finalBalanceWETH = balanceWETH - balanceWETH * balanceBPT / totalSupply;
-        uint256 swapFee          = bpool.getSwapFee();
+        uint256 poolBalanceWETH = bpool.getBalance(address(wethToken));
+        uint256 poolBalancePNK = pnkToken.balanceOf(address(bpool));
+        uint256 balanceWETH = poolBalanceWETH;
+        uint256 balancePNK = poolBalancePNK;
+        uint256 swapFee = bpool.getSwapFee();
+
+        /* RECORD CURRENT HOLDER */
+        balanceBPT = bpool.totalSupply();
+        for (uint256 i = 0; i < lpList.length; i++)
+            lpBalance[lpList[i]] = bpool.balanceOf(lpList[i]);
 
         /* PULL PNK */
-        pnkToken.transferFrom(address(bpool), address(this), balancePNK - 2); // Need to be the controller
+        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK - 2); // Need to be the controller
         bpool.gulp(address(pnkToken));
-        pnkToken.approve(address(bpool), balancePNK - 2);
-        balancePNK = 2;
+        pnkToken.approve(address(bpool), poolBalancePNK - 2);
+        poolBalancePNK = 2;
 
         /* PULL WETH (A.K.A ARBITRATION) */
-        uint256 nextAmountIn  = 1; // balancePNK / 2
+        uint256 nextAmountIn  = 1; // poolBalancePNK / 2
         uint256 nextAmountOut = calcOutGivenIn(
-            balancePNK,   // tokenBalanceIn
-            balanceWETH,  // tokenBalanceOut
+            poolBalancePNK, // tokenBalanceIn
+            poolBalanceWETH, // tokenBalanceOut
             nextAmountIn, // tokenAmountIn
-            swapFee       // swapFee
+            swapFee // swapFee
         );
 
-        // Repeat as long as
-        //  - there is still WETH to recover, or
-        //  - recovering the next WETH would cost too much gas
-        while (balanceWETH - nextAmountOut >= finalBalanceWETH && nextAmountOut > gasPerIteration * tx.gasprice) {
-            balanceWETH -= nextAmountOut;
-            balancePNK  += nextAmountIn;
+        // Repeat as long as recovering the next WETH would cost too much gas
+        while (nextAmountOut > gasPerIteration * tx.gasprice) {
+            poolBalanceWETH -= nextAmountOut;
+            poolBalancePNK += nextAmountIn;
 
             bpool.swapExactAmountIn(
                 address(pnkToken),  // tokenIn
@@ -147,39 +196,40 @@ contract BalancerPoolRecoverer {
                 uint256(-1)         // maxPrice
             );
 
-            nextAmountIn  = balancePNK / 2;
+            nextAmountIn  = poolBalancePNK / 2;
             nextAmountOut = calcOutGivenIn(
-                balancePNK,   // tokenBalanceIn
-                balanceWETH,  // tokenBalanceOut
+                poolBalancePNK, // tokenBalanceIn
+                poolBalanceWETH, // tokenBalanceOut
                 nextAmountIn, // tokenAmountIn
-                swapFee       // swapFee
+                swapFee // swapFee
             );
         }
 
-        // Last swap if the recovering isn't too expensive
-        if (balanceWETH - nextAmountOut < finalBalanceWETH && nextAmountOut > gasPerIteration * tx.gasprice) {
-            nextAmountOut = balanceWETH - finalBalanceWETH;
-            (nextAmountIn,) = bpool.swapExactAmountOut(
-                address(pnkToken),  // tokenIn
-                uint256(-1),        // maxAmountIn
-                address(wethToken), // tokenOut
-                nextAmountOut,      // tokenAmountOut
-                uint256(-1)         // maxPrice
-            );
+        balanceWETH -= poolBalanceWETH;
 
-            balancePNK  += nextAmountIn;
-            // balanceWETH -= nextAmountOut;
-        }
+        // Recover swapped PNK
+        pnkToken.transferFrom(address(bpool), address(this), pnkToken.balanceOf(address(bpool))); // Need to be the controller
 
-        // Adjust pool's PNK balance
-        if (balancePNK > finalBalancePNK)
-            pnkToken.transferFrom(address(bpool), address(this), balancePNK - finalBalancePNK); // Need to be the controller
+        /* MIGRATE TO NEW BPOOL */
+        pnkToken.approve(address(newBpool), balancePNK);
+        wethToken.approve(address(newBpool), balanceWETH);
+
+        uint256 newBpoolBalanceBPT = newBpool.totalSupply();
+        uint256 newBpoolBalancePNK = newBpool.getBalance(address(pnkToken));
+        uint256 newBpoolBalanceWETH = newBpool.getBalance(address(wethToken));
+
+        // See README.md
+        uint256 ratio;
+        if (balancePNK * newBpoolBalanceWETH > balanceWETH * newBpoolBalancePNK)
+            ratio = (BONE * balanceWETH - BONE / 2) / newBpoolBalanceWETH;
         else
-            pnkToken.transferFrom(address(this), address(bpool), finalBalancePNK - balancePNK); // Need to be the controller
+            ratio = (BONE * balancePNK - BONE / 2) / newBpoolBalancePNK;
+        newBalanceBPT = (ratio * newBpoolBalanceBPT - newBpoolBalanceBPT / 2) / BONE;
 
-        /* SEND RECOVERED TOKENS */
-        pnkToken.transfer(owner, pnkToken.balanceOf(address(this)));
-        wethToken.transfer(owner, wethToken.balanceOf(address(this)));
+        uint256[] memory maxAmountsIn = new uint256[](2);
+        maxAmountsIn[0] = uint256(-1);
+        maxAmountsIn[1] = uint256(-1);
+        newBpool.joinPool(newBalanceBPT, maxAmountsIn);
 
         /* RESTORE CONTROLLER */
         restoreController();
