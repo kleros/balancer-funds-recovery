@@ -27,13 +27,6 @@ contract BPool is IERC20 {
         uint256 minAmountOut,
         uint256 maxPrice
     ) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
-    function swapExactAmountOut(
-        address tokenIn,
-        uint256 maxAmountIn,
-        address tokenOut,
-        uint256 tokenAmountOut,
-        uint256 maxPrice
-    ) external returns (uint256 tokenAmountIn, uint256 spotPriceAfter);
     function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) external;
 }
 
