@@ -1,4 +1,4 @@
-pragma solidity 0.5.12;
+pragma solidity ^0.6.5;
 
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -8,29 +8,29 @@ interface IERC20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
-contract MiniMeToken is IERC20 {
-    function changeController(address _governor) external;
+abstract contract MiniMeToken is IERC20 {
+    function changeController(address _governor) virtual external;
 }
 
-contract WETH9 is IERC20 {}
+abstract contract WETH9 is IERC20 {}
 
-contract KlerosLiquid {}
+abstract contract KlerosLiquid {}
 
-contract BPool is IERC20 {
-    function getBalance(address token) external view returns (uint256);
-    function getSwapFee() external view returns (uint256);
-    function gulp(address token) external;
+abstract contract BPool is IERC20 {
+    function getBalance(address token) virtual external view returns (uint256);
+    function getSwapFee() virtual external view returns (uint256);
+    function gulp(address token) virtual external;
     function swapExactAmountIn(
         address tokenIn,
         uint256 tokenAmountIn,
         address tokenOut,
         uint256 minAmountOut,
         uint256 maxPrice
-    ) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
-    function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) external;
+    ) virtual external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
+    function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) virtual external;
 }
 
-contract KlerosGovernor {}
+abstract contract KlerosGovernor {}
 
 contract BalancerPoolRecoverer {
     uint256 constant gasPerIteration = 92294;
@@ -42,13 +42,13 @@ contract BalancerPoolRecoverer {
     mapping(address => uint256) public lpBalance; // Recorded balance of a liquidity provider
     address[] lpList;
 
-    KlerosGovernor governor;
-    MiniMeToken pnkToken;
-    WETH9 wethToken;
-    BPool bpool;
-    BPool newBpool;
-    KlerosLiquid controller;
-    address beneficiary;
+    KlerosGovernor immutable governor;
+    MiniMeToken immutable pnkToken;
+    WETH9 immutable wethToken;
+    BPool immutable bpool;
+    BPool immutable newBpool;
+    KlerosLiquid immutable controller;
+    address immutable beneficiary;
 
     modifier onlyGovernor() {
         require(msg.sender == address(governor));
