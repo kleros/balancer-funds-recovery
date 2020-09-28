@@ -32,32 +32,6 @@ contract BPool is IERC20 {
 
 contract KlerosGovernor {}
 
-/*
-    Recover funds related to the BPT liquidity locked at 0xd14b5739f5ff646e8f9b6ccf661257cbdf6dd0c4ece8b371eabe397b9d05da6e
-
-    WARNING: The liquidity in this pool will lose about 96% (pool's BPT balance / BPT total supply) of its value at the time of writing
-
-    Only the controller of PNK (MiniMeToken) can transfer tokens at will.
-        WETH is at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-        PNK  is at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d
-        Its controller is KlerosLiquid at 0x988b3a538b618c7a603e1c11ab82cd16dbe28069
-        The controller's governor is 0x334f12afb7d8740868be04719639616533075234 (EOA)
-
-    Everything must happen in the same transaction to prevent front-running
-
-    KlerosLiquid can only execute one arbitrary internal transaction (as the msg.sender)
-        at a time (call rather than delegatecall)
-    This implies that either:
-     - KlerosLiquid's governor needs to be changed (temporarily) to the attacking contract, or
-     - PNK's controller needs to be changed (temporarily) to the attacking contract
-    Here we went for the second (simplest) solution
-
-    Attack steps:
-        1. Deploy BalancerPoolRecoverer
-        2. Transfer PNK's controller rights to the deployed BalancerPoolRecoverer
-        3. Execute BalancerPoolRecoverer.attack()
-*/
-
 contract BalancerPoolRecoverer {
     uint256 constant gasPerIteration = 92294;
     uint256 constant BONE = 10 ** 18; // Represents balancer's one (1) in fixed point arithmetic
