@@ -36,6 +36,8 @@ contract BPool is IERC20 {
     ) external returns (uint256 tokenAmountIn, uint256 spotPriceAfter);
 }
 
+contract KlerosGovernor {}
+
 /*
     Recover funds related to the BPT liquidity locked at 0xd14b5739f5ff646e8f9b6ccf661257cbdf6dd0c4ece8b371eabe397b9d05da6e
 
@@ -66,32 +68,34 @@ contract BalancerPoolRecoverer {
     uint256 constant gasPerIteration = 92294;
     uint256 constant BONE = 10 ** 18;
 
-    address owner;
 
+    KlerosGovernor governor;
     MiniMeToken pnkToken;
     WETH9 wethToken;
     BPool bpool;
     KlerosLiquid controller;
 
-    modifier onlyOwner() {
-        require(msg.sender == owner);
+    modifier onlyGovernor() {
+        require(msg.sender == address(governor));
         _;
     }
 
     constructor(
+        KlerosGovernor _governor,
         MiniMeToken _pnkToken,
         WETH9 _wethToken,
         BPool _bpool,
         KlerosLiquid _controller
     ) public {
-        owner = msg.sender;
+        governor = _governor;
         pnkToken = _pnkToken;
         wethToken = _wethToken;
         bpool = _bpool;
         controller = _controller;
     }
 
-    function restoreController() public onlyOwner {
+    // In case the attack cannot be executed
+    function restoreController() public onlyGovernor {
         pnkToken.changeController(address(controller));
     }
 
@@ -103,7 +107,7 @@ contract BalancerPoolRecoverer {
         return true;
     }
 
-    function attack() external onlyOwner {
+    function attack() external onlyGovernor {
         /* QUERY POOL STATE */
         uint256 totalSupply      = bpool.totalSupply();
         uint256 balanceBPT       = bpool.balanceOf(address(bpool));
