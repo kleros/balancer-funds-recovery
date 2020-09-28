@@ -1,31 +1,22 @@
 pragma solidity 0.5.12;
 
-interface MiniMeToken {
-    function approve(address _spender, uint256 _amount) external returns (bool success);
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+}
 
-    function balanceOf(address _owner) external view returns (uint256 balance);
-
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external returns (bool success);
-
-    function transfer(address _to, uint256 _amount) external returns (bool success);
-
+contract MiniMeToken is IERC20 {
     function changeController(address _governor) external;
 }
 
-interface WETH9 {
-    function balanceOf(address) external view returns (uint256);
-    function transfer(address dst, uint256 wad) external returns (bool);
-}
+contract WETH9 is IERC20 {}
 
-interface KlerosLiquid {}
+contract KlerosLiquid {}
 
-interface BPool {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address whom) external view returns (uint256);
+contract BPool is IERC20 {
     function getBalance(address token) external view returns (uint256);
     function getSwapFee() external view returns (uint256);
     function gulp(address token) external;
