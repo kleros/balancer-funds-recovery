@@ -22,7 +22,6 @@ let contracts = {
   bactions: undefined,
   bfactory: undefined,
   bpool: undefined,
-  newbpool: undefined,
   governor: undefined,
   // recoverer: undefined,
 };
@@ -94,20 +93,6 @@ async function main() {
     initialWethBalance,
     initialPnkBalance
   );
-  await deploy(
-    'newdsproxy',
-    'DSProxy.sol:DSProxy',
-    ['0x0123456789abcDEF0123456789abCDef01234567'],
-    {
-      from: accounts.bpoolDeployer,
-    }
-  );
-  await deployBPool(
-    contracts.newdsproxy,
-    'newbpool',
-    (BigInt(currentWethBalance) / 100n).toString(),
-    (BigInt(currentPnkBalance) / 100n).toString()
-  );
   await deploy('governor', 'SimpleGovernor.sol:SimpleGovernor', [], {
     from: accounts.governorDeployer,
   });
@@ -137,7 +122,7 @@ async function main() {
   console.log('');
 
   await showBalances(
-    [contracts.weth, contracts.pnk, contracts.bpool, contracts.newbpool],
+    [contracts.weth, contracts.pnk, contracts.bpool],
     accountList
   );
 
@@ -150,7 +135,6 @@ async function main() {
       contracts.pnk.options.address,
       contracts.weth.options.address,
       contracts.bpool.options.address,
-      contracts.newbpool.options.address,
       accounts.pnkDeployer,
       accounts.multisig,
     ],
@@ -158,16 +142,6 @@ async function main() {
       from: accounts.recovererDeployer,
     }
   );
-  await contracts.recoverer.methods['registerLP(address)'](accounts.other).send(
-    {
-      from: accounts.recovererDeployer,
-    }
-  );
-  await contracts.recoverer.methods['registerLP(address)'](
-    accounts.bpoolDeployer
-  ).send({
-    from: accounts.recovererDeployer,
-  });
   await attack();
   console.log('');
 
@@ -177,17 +151,7 @@ async function main() {
   });
 
   await showBalances(
-    [contracts.weth, contracts.pnk, contracts.bpool, contracts.newbpool],
-    accountList
-  );
-
-  console.log('>>> Recoverings <<<');
-  await contracts.recoverer.methods['restoreLP(uint256)'](2).send({
-    from: accounts.recovererDeployer,
-  });
-
-  await showBalances(
-    [contracts.weth, contracts.pnk, contracts.bpool, contracts.newbpool],
+    [contracts.weth, contracts.pnk, contracts.bpool],
     accountList
   );
 }
