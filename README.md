@@ -62,7 +62,8 @@ Once again we can simply remove the <img src="https://latex.codecogs.com/svg.lat
 
 # Effects
 
-As liquidity will be removed without burning the associated liquidity token (BPT), each BPT will be worth less (-96% at the time of writing), that's why we need to tell this pool's BPT holders to withdraw their funds before launching the attack.
+The original pool will be almost emptied. Thus the associated liquidity tokens (BPT) will lose almost all of their value.
+A new identical pool will be created and the original pool's liquidity providers will be given equivalent liquidity tokens in the new pool.
 
 # Test
 
