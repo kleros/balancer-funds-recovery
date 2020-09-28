@@ -10,6 +10,7 @@ interface IERC20 {
 
 abstract contract MiniMeToken is IERC20 {
     function changeController(address _governor) virtual external;
+    address public controller; // Getter
 }
 
 abstract contract WETH9 is IERC20 {}
@@ -43,12 +44,15 @@ contract BalancerPoolRecoverer {
     uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
 
     // Contracts and addresses to act on (immutable)
-    KlerosGovernor immutable governor;
-    MiniMeToken immutable pnkToken;
-    WETH9 immutable wethToken;
-    BPool immutable bpool;
-    KlerosLiquid immutable controller;
-    address immutable beneficiary;
+    KlerosGovernor immutable public governor;
+    MiniMeToken immutable public pnkToken;
+    WETH9 immutable public wethToken;
+    BPool immutable public bpool;
+    KlerosLiquid immutable public controller;
+    address immutable public beneficiary;
+
+    // Storage
+    uint256 initiateRestoreControllerTimestamp;
 
 
     /* *** Modifier *** */
@@ -82,17 +86,29 @@ contract BalancerPoolRecoverer {
         beneficiary = _beneficiary;
     }
 
+    /** @dev Ask for PNK token's controller to be restored
+     *  Safeguard if the attack does not work.
+     *  Note that this gives one hour for the attack to be executed
+     */
+    function initiateRestoreController() external {
+        require(initiateRestoreControllerTimestamp == 0);
+        require(pnkToken.controller() == address(this));
+        initiateRestoreControllerTimestamp = block.timestamp;
+    }
+
     /** @dev Restore the PNK token's controller
-      * In case the attack cannot be executed
-      */
-    function restoreController() public onlyGovernor {
+     *  In case the attack cannot be executed
+     *  Can be called by the governor, or by anyone one hour after initiateRestoreController
+     */
+    function restoreController() external {
+        require(msg.sender == address(governor) || initiateRestoreControllerTimestamp + 1 hours < block.timestamp);
         pnkToken.changeController(address(controller));
     }
 
     /** @dev Recover the locked funds
-      * This function ensures everything happens in the same transaction.
-      * Note that this function requires a high gas limit and consumes more gas the lower the gas fee
-      */
+     *  This function ensures everything happens in the same transaction.
+     *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee
+     */
     function attack() external onlyGovernor {
         /* QUERY POOL STATE */
         uint256 poolBalanceWETH = bpool.getBalance(address(wethToken));
@@ -148,7 +164,7 @@ contract BalancerPoolRecoverer {
         pnkToken.transfer(beneficiary, balancePNK);
 
         /* RESTORE CONTROLLER */
-        restoreController();
+        pnkToken.changeController(address(controller));
     }
 
     // Since the attack contract is PNK's controller, it has to allow transfers and approvals
