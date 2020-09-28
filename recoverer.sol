@@ -13,6 +13,12 @@ abstract contract MiniMeToken is IERC20 {
     address public controller; // Getter
 }
 
+abstract contract TokenController {
+    function proxyPayment(address _owner) virtual public payable returns (bool);
+    function onTransfer(address _from, address _to, uint256 _amount) virtual public returns (bool);
+    function onApprove(address _owner, address _spender, uint256 _amount) virtual public returns (bool);
+}
+
 abstract contract WETH9 is IERC20 {}
 
 abstract contract KlerosLiquid {}
@@ -36,7 +42,7 @@ abstract contract KlerosGovernor {}
 /** @title BalancerPoolRecoverer
   * @dev The contract used to recover funds locked in a Balancer Pool
   */
-contract BalancerPoolRecoverer {
+contract BalancerPoolRecoverer is TokenController {
     /* *** Variables *** */
 
     // Constants
@@ -52,6 +58,7 @@ contract BalancerPoolRecoverer {
     address immutable public beneficiary;
 
     // Storage
+    bool attackOngoing; // Control TokenController functionality (block transfers by default)
     uint256 initiateRestoreControllerTimestamp;
 
 
@@ -110,6 +117,8 @@ contract BalancerPoolRecoverer {
      *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee
      */
     function attack() external onlyGovernor {
+        attackOngoing = true;
+
         /* QUERY POOL STATE */
         uint256 poolBalanceWETH = bpool.getBalance(address(wethToken));
         uint256 poolBalancePNK = pnkToken.balanceOf(address(bpool));
@@ -167,11 +176,14 @@ contract BalancerPoolRecoverer {
         pnkToken.changeController(address(controller));
     }
 
-    // Since the attack contract is PNK's controller, it has to allow transfers and approvals
-    function onTransfer(address _from, address _to, uint256 _amount) public returns (bool) {
-        return true;
+    // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only
+    function proxyPayment(address _owner) override public payable returns (bool) {
+        return false;
     }
-    function onApprove(address _owner, address _spender, uint256 _amount) public returns (bool) {
+    function onTransfer(address _from, address _to, uint256 _amount) override public returns (bool) {
+        return attackOngoing;
+    }
+    function onApprove(address _owner, address _spender, uint256 _amount) override public returns (bool) {
         return true;
     }
 
