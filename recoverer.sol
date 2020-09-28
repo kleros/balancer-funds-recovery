@@ -206,7 +206,7 @@ contract BalancerPoolRecoverer {
         balanceWETH -= poolBalanceWETH;
 
         // Recover swapped PNK
-        pnkToken.transferFrom(address(bpool), address(this), pnkToken.balanceOf(address(bpool))); // Need to be the controller
+        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller
 
         /* MIGRATE TO NEW BPOOL */
         pnkToken.approve(address(newBpool), balancePNK);
