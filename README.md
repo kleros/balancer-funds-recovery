@@ -33,6 +33,7 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Register current pool's LP (BPT holders)
 1. Transfer PNK's controller rights
 1. Execute the attack
+1. Send holders their new BPT
 
 The governor enforces a strict order of transactions. This can be worked around by padding some transactions calldata if necessary.
 
