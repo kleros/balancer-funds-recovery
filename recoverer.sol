@@ -32,16 +32,17 @@ abstract contract BPool is IERC20 {
 
 abstract contract KlerosGovernor {}
 
+/** @title BalancerPoolRecoverer
+  * @dev The contract used to recover funds locked in a Balancer Pool
+  */
 contract BalancerPoolRecoverer {
-    uint256 constant gasPerIteration = 92294;
-    uint256 constant BONE = 10 ** 18; // Represents balancer's one (1) in fixed point arithmetic
+    /* *** Variables *** */
 
-    bool attackDone;
-    uint256 public balanceBPT;
-    uint256 newBalanceBPT;
-    mapping(address => uint256) public lpBalance; // Recorded balance of a liquidity provider
-    address[] lpList;
+    // Constants
+    uint256 constant gasPerIteration = 92294; // Gas consumed by one iteration of the main loop
+    uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
 
+    // Contracts and addresses to act on (immutable)
     KlerosGovernor immutable governor;
     MiniMeToken immutable pnkToken;
     WETH9 immutable wethToken;
@@ -50,11 +51,30 @@ contract BalancerPoolRecoverer {
     KlerosLiquid immutable controller;
     address immutable beneficiary;
 
+    // State variable
+    bool attackDone;
+    uint256 public balanceBPT;
+    uint256 newBalanceBPT;
+    mapping(address => uint256) public lpBalance; // Recorded balance of a liquidity provider
+    address[] lpList;
+
+
+    /* *** Modifier *** */
+
     modifier onlyGovernor() {
         require(msg.sender == address(governor));
         _;
     }
 
+    /** @dev Constructor
+     *  @param _governor The governor of the contract. In this case it is the KlerosGovernor contract, at 0xNotYetDeployed
+     *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d
+     *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+     *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D
+     *  @param _newBpool The BPool to send the recovered liquidity to, at 0xNotYetDeployed
+     *  @param _controller The controller of the PNK token. In this case it is the KlerosLiquid contract, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069
+     *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4
+     */
     constructor(
         KlerosGovernor _governor,
         MiniMeToken _pnkToken,
@@ -73,6 +93,10 @@ contract BalancerPoolRecoverer {
         beneficiary = _beneficiary;
     }
 
+    /** @dev Register an existing liquidity provider of the old pool
+     *  @param lp The liquidity provider to register
+     *  Note that the old pool is blacklisted to prevent locking the same liquidity in the new pool
+     */
     function registerLP(address lp) external {
         require(!attackDone);
         require(lp != address(bpool)); // Blacklist
@@ -83,6 +107,11 @@ contract BalancerPoolRecoverer {
         }
     }
 
+    /** @dev Send equivalent liquidity tokens of the new pool to the registered liquidity providers of the old pool
+     *  @param iterations Number of liquidity providers to process
+     *  Note that after all liquidity providers are processed, the remaining funds are sent to this contract's beneficiary.
+     *  As the locked liquidity is blacklisted, it will necessarily be sent to the beneficiary.
+     */
     function restoreLP(uint256 iterations) external {
         require(attackDone);
 
@@ -99,7 +128,7 @@ contract BalancerPoolRecoverer {
             newBpool.transfer(receiver, amount);
         }
 
-        // After every LP has been reimbursed, send remaining funds to Coopérative Kleros
+        // After every LP has been reimbursed, send remaining funds to beneficiary
         if (lpList.length == 0) {
             newBpool.transfer(beneficiary, newBpool.balanceOf(address(this)));
             wethToken.transfer(beneficiary, wethToken.balanceOf(address(this)));
@@ -107,19 +136,21 @@ contract BalancerPoolRecoverer {
         }
     }
 
-    // In case the attack cannot be executed
+    /** @dev Restore the PNK token's controller
+      * In case the attack cannot be executed
+      */
     function restoreController() public onlyGovernor {
         pnkToken.changeController(address(controller));
     }
 
-    // Since the attack contract is PNK's controller, it has to allow transfers and approvals
-    function onTransfer(address _from, address _to, uint256 _amount) public returns (bool) {
-        return true;
-    }
-    function onApprove(address _owner, address _spender, uint256 _amount) public returns (bool) {
-        return true;
-    }
-
+    /** @dev Recover the locked funds
+      * This function ensures everything happens in the same transaction. It
+      * - records liquidity provider's share in the old pool,
+      * - recovers as much funds as possible from the old pool,
+      * - sends them to the new pool, and
+      * - restores PNK's controller rights to its original controller
+      * Note that this function requires a high gas limit and consumes more gas the lower the gas fee
+      */
     function attack() external onlyGovernor {
         attackDone = true;
 
@@ -130,7 +161,7 @@ contract BalancerPoolRecoverer {
         uint256 balancePNK = poolBalancePNK;
         uint256 swapFee = bpool.getSwapFee();
 
-        /* RECORD CURRENT HOLDER */
+        /* RECORD CURRENT HOLDERS' LIQUIDITY SHARE */
         balanceBPT = bpool.totalSupply();
         for (uint256 i = 0; i < lpList.length; i++)
             lpBalance[lpList[i]] = bpool.balanceOf(lpList[i]);
@@ -150,17 +181,17 @@ contract BalancerPoolRecoverer {
             swapFee // swapFee
         );
 
-        // Repeat as long as recovering the next WETH would cost too much gas
+        // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself
         while (nextAmountOut > gasPerIteration * tx.gasprice) {
             poolBalanceWETH -= nextAmountOut;
             poolBalancePNK += nextAmountIn;
 
             bpool.swapExactAmountIn(
-                address(pnkToken),  // tokenIn
-                nextAmountIn,       // tokenAmountIn
+                address(pnkToken), // tokenIn
+                nextAmountIn, // tokenAmountIn
                 address(wethToken), // tokenOut
-                0,                  // minAmountOut
-                uint256(-1)         // maxPrice
+                0, // minAmountOut
+                uint256(-1) // maxPrice
             );
 
             nextAmountIn  = poolBalancePNK / 2;
@@ -200,6 +231,14 @@ contract BalancerPoolRecoverer {
 
         /* RESTORE CONTROLLER */
         restoreController();
+    }
+
+    // Since the attack contract is PNK's controller, it has to allow transfers and approvals
+    function onTransfer(address _from, address _to, uint256 _amount) public returns (bool) {
+        return true;
+    }
+    function onApprove(address _owner, address _spender, uint256 _amount) public returns (bool) {
+        return true;
     }
 
     // Code taken and adapted from https://github.com/balancer-labs/balancer-core
