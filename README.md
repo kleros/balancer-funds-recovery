@@ -32,8 +32,6 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Transfer PNK's controller rights (in governor)
 1. Execute the attack (in governor)
 
-The governor enforces a strict order of transactions. This can be worked around by padding some transactions calldata if necessary.
-
 # Effects
 
 The pool will be drained. Thus the associated liquidity tokens (BPT) will lose almost all of their value.
