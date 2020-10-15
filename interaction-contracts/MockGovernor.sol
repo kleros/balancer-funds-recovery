@@ -18,7 +18,7 @@ contract MockGovernor {
 
     Submission submission;
 
-    function submitList (address[] memory _target, uint[] memory _value, bytes memory _data, uint[] memory _dataSize, string memory _description) public payable {
+    function submitList (address[] memory _target, uint[] memory _value, bytes memory _data, uint[] memory _dataSize, string memory /*_description*/) public payable {
         require(_target.length == _value.length, "Incorrect input. Target and value arrays must be of the same length.");
         require(_target.length == _dataSize.length, "Incorrect input. Target and datasize arrays must be of the same length.");
 
@@ -52,7 +52,7 @@ contract MockGovernor {
         submission.listHash = hashes[0];
     }
 
-    function executeTransactionList(uint _listID, uint _cursor, uint _count) public {
+    function executeTransactionList(uint /*_listID*/, uint _cursor, uint _count) public {
         for (uint i = _cursor; i < submission.txs.length && (_count == 0 || i < _cursor + _count); i++) {
             Transaction storage transaction = submission.txs[i];
             uint expendableFunds = getExpendableFunds();
@@ -71,7 +71,7 @@ contract MockGovernor {
         return address(this).balance;
     }
 
-    function getTransactionInfo(uint _listID, uint _transactionIndex) public view returns (address, uint, bytes memory, bool) {
+    function getTransactionInfo(uint /*_listID*/, uint _transactionIndex) public view returns (address, uint, bytes memory, bool) {
         Transaction storage transaction = submission.txs[_transactionIndex];
         return (
             transaction.target,

@@ -1,44 +1,14 @@
 pragma solidity ^0.6.5;
 
-interface IERC20 {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-}
-
-abstract contract MiniMeToken is IERC20 {
-    function changeController(address _governor) virtual external;
-    address public controller; // Getter
-}
-
-abstract contract WETH9 is IERC20 {}
-
-abstract contract TokenController {
-    function proxyPayment(address _owner) virtual public payable returns (bool);
-    function onTransfer(address _from, address _to, uint256 _amount) virtual public returns (bool);
-    function onApprove(address _owner, address _spender, uint256 _amount) virtual public returns (bool);
-}
-
-abstract contract BPool is IERC20 {
-    function getBalance(address token) virtual external view returns (uint256);
-    function getSwapFee() virtual external view returns (uint256);
-    function gulp(address token) virtual external;
-    function swapExactAmountIn(
-        address tokenIn,
-        uint256 tokenAmountIn,
-        address tokenOut,
-        uint256 minAmountOut,
-        uint256 maxPrice
-    ) virtual external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
-    function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) virtual external;
-}
+import "./dependencies/IERC20.sol";
+import "./dependencies/IMiniMeToken.sol";
+import "./dependencies/ITokenController.sol";
+import "./dependencies/IBPool.sol";
 
 /** @title BalancerPoolRecoverer
   * @dev The contract used to recover funds locked in a Balancer Pool
   */
-contract BalancerPoolRecoverer is TokenController {
+contract BalancerPoolRecoverer is ITokenController {
     /* *** Variables *** */
 
     // Constants
@@ -48,9 +18,9 @@ contract BalancerPoolRecoverer is TokenController {
 
     // Contracts and addresses to act on (immutable)
     address immutable public governor;
-    MiniMeToken immutable public pnkToken;
-    WETH9 immutable public wethToken;
-    BPool immutable public bpool;
+    IMiniMeToken immutable public pnkToken;
+    IERC20 immutable public wethToken;
+    IBPool immutable public bpool;
     address immutable public controller;
     address immutable public beneficiary;
 
@@ -76,9 +46,9 @@ contract BalancerPoolRecoverer is TokenController {
      */
     constructor(
         address _governor,
-        MiniMeToken _pnkToken,
-        WETH9 _wethToken,
-        BPool _bpool,
+        IMiniMeToken _pnkToken,
+        IERC20 _wethToken,
+        IBPool _bpool,
         address _controller,
         address _beneficiary
     ) public {
@@ -174,13 +144,13 @@ contract BalancerPoolRecoverer is TokenController {
     }
 
     // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only
-    function proxyPayment(address _owner) override public payable returns (bool) {
+    function proxyPayment(address /*_owner*/) override public payable returns (bool) {
         return false;
     }
-    function onTransfer(address _from, address _to, uint256 _amount) override public returns (bool) {
+    function onTransfer(address /*_from*/, address /*_to*/, uint256 /*_amount*/) override public returns (bool) {
         return attackOngoing;
     }
-    function onApprove(address _owner, address _spender, uint256 _amount) override public returns (bool) {
+    function onApprove(address /*_owner*/, address /*_spender*/, uint256 /*_amount*/) override public returns (bool) {
         return true;
     }
 
