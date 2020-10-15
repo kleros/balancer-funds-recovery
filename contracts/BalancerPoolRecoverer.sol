@@ -13,15 +13,13 @@ abstract contract MiniMeToken is IERC20 {
     address public controller; // Getter
 }
 
+abstract contract WETH9 is IERC20 {}
+
 abstract contract TokenController {
     function proxyPayment(address _owner) virtual public payable returns (bool);
     function onTransfer(address _from, address _to, uint256 _amount) virtual public returns (bool);
     function onApprove(address _owner, address _spender, uint256 _amount) virtual public returns (bool);
 }
-
-abstract contract WETH9 is IERC20 {}
-
-abstract contract KlerosLiquid {}
 
 abstract contract BPool is IERC20 {
     function getBalance(address token) virtual external view returns (uint256);
@@ -37,8 +35,6 @@ abstract contract BPool is IERC20 {
     function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) virtual external;
 }
 
-abstract contract KlerosGovernor {}
-
 /** @title BalancerPoolRecoverer
   * @dev The contract used to recover funds locked in a Balancer Pool
   */
@@ -46,15 +42,16 @@ contract BalancerPoolRecoverer is TokenController {
     /* *** Variables *** */
 
     // Constants
-    uint256 constant public gasPerIteration = 92294; // Gas consumed by one iteration of the main loop
+    uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop
+    uint256 constant gasToEnd = 160211; // Gas consumed after the loop
     uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
 
     // Contracts and addresses to act on (immutable)
-    KlerosGovernor immutable public governor;
+    address immutable public governor;
     MiniMeToken immutable public pnkToken;
     WETH9 immutable public wethToken;
     BPool immutable public bpool;
-    KlerosLiquid immutable public controller;
+    address immutable public controller;
     address immutable public beneficiary;
 
     // Storage
@@ -70,19 +67,19 @@ contract BalancerPoolRecoverer is TokenController {
     }
 
     /** @dev Constructor
-     *  @param _governor The governor of the contract. In this case it is the KlerosGovernor contract, at 0xNotYetDeployed
+     *  @param _governor The governor of the contract
      *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d
      *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
      *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D
-     *  @param _controller The controller of the PNK token. In this case it is the KlerosLiquid contract, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069
+     *  @param _controller The controller of the PNK token, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069
      *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4
      */
     constructor(
-        KlerosGovernor _governor,
+        address _governor,
         MiniMeToken _pnkToken,
         WETH9 _wethToken,
         BPool _bpool,
-        KlerosLiquid _controller,
+        address _controller,
         address _beneficiary
     ) public {
         governor = _governor;
@@ -142,7 +139,7 @@ contract BalancerPoolRecoverer is TokenController {
         );
 
         // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself
-        while (nextAmountOut > gasPerIteration * tx.gasprice) {
+        while (nextAmountOut > gasPerIteration * tx.gasprice && gasleft() > gasToEnd) {
             poolBalanceWETH -= nextAmountOut;
             poolBalancePNK += nextAmountIn;
 

@@ -70,4 +70,15 @@ contract MockGovernor {
     function getExpendableFunds() public view returns (uint) {
         return address(this).balance;
     }
+
+    function getTransactionInfo(uint _listID, uint _transactionIndex) public view returns (address, uint, bytes memory, bool) {
+        Transaction storage transaction = submission.txs[_transactionIndex];
+        return (
+            transaction.target,
+            transaction.value,
+            transaction.data,
+            transaction.executed
+        );
+    }
+
 }
