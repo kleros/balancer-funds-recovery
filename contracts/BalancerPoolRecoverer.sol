@@ -129,15 +129,11 @@ contract BalancerPoolRecoverer is ITokenController {
                 swapFee // swapFee
             );
         }
-
         balanceWETH -= poolBalanceWETH;
-
-        // Recover swapped PNK
-        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller
 
         /* SEND FUNDS TO BENEFICIARY */
         wethToken.transfer(beneficiary, balanceWETH);
-        pnkToken.transfer(beneficiary, balancePNK);
+        pnkToken.transfer(beneficiary, balancePNK - poolBalancePNK);
 
         /* RESTORE CONTROLLER */
         pnkToken.changeController(address(controller));

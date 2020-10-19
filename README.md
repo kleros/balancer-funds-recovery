@@ -34,12 +34,11 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Transfer PNK's controller rights (in governor)
 1. Execute the attack (in governor)
     1. Pull all but 2 units of PNK from the pool (need to be PNK's controller)
-    1. Swap PNK for WETH repeteadly as long as it is profitable
-    1. Recover the PNK swapped back into the pool<sup>[1]</sup>
+    1. Swap PNK for WETH repeteadly as long as it is profitable<sup>[1]</sup>
     1. Send the recovered funds to the beneficiary
     1. Restore PNK's controller to KlerosLiquid
 
-<sup>[1]</sup>Even this amount is negligeable (around <img src="https://latex.codecogs.com/svg.latex?{10}^{-12}"/> PNK), recovering it triggers a gas refund actually making it profitable.
+<sup>[1]</sup>The amount of PNK swapped back is negligeable (around <img src="https://latex.codecogs.com/svg.latex?{10}^{-12}"/> PNK), so recovering it is not worth the additional gas.
 
 ## Effects
 
