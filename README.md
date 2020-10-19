@@ -23,7 +23,7 @@ However, as Kleros controls the balances of one of the tokens ([PNK](https://eth
 The idea is to leverage the control over PNK's balances to trick the pool into overestimating the value of PNK over WETH.
 
 We need to first pull some PNK from the pool, then swap some PNK for the WETH we want to recover. Note that:
-- we can use the PNK pulled to make the swap
+- the pulled PNK is used to make the token swaps
 - everything has to happen in the same transaction to prevent front-running
 
 Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3c3de6e058cb73bc04d) (i.e. [KlerosLiquid](https://etherscan.io/address/0x988b3a538b618c7a603e1c11ab82cd16dbe28069)) can transfer tokens at will. However, it can only execute a single arbitrary transaction at a time. So we need to temporarily replace PNK's controller.
@@ -33,6 +33,13 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Deploy `BalancerPoolRecoverer`
 1. Transfer PNK's controller rights (in governor)
 1. Execute the attack (in governor)
+    1. Pull all but 2 units of PNK from the pool (need to be PNK's controller)
+    1. Swap PNK for WETH repeteadly as long as it is profitable
+    1. Recover the PNK swapped back into the pool<sup>[1]</sup>
+    1. Send the recovered funds to the beneficiary
+    1. Restore PNK's controller to KlerosLiquid
+
+<sup>[1]</sup>Even this amount is negligeable (around <img src="https://latex.codecogs.com/svg.latex?{10}^{-12}"/> PNK), recovering it triggers a gas refund actually making it profitable.
 
 ## Effects
 
