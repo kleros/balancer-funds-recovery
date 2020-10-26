@@ -1,3 +1,13 @@
+/**
+ * @authors: [@nix1g]
+ * @reviewers: []
+ * @auditors: []
+ * @bounties: []
+ * @deployments: []
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 pragma solidity ^0.6.5;
 
 import "./dependencies/IERC20.sol";
@@ -13,7 +23,7 @@ contract BalancerPoolRecoverer is ITokenController {
 
     // Constants
     uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop
-    uint256 constant gasToEnd = 160211; // Gas consumed after the loop
+    uint256 constant gasToEnd = 146221; // Gas consumed after the loop
     uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
 
     // Contracts and addresses to act on (immutable)
@@ -37,12 +47,12 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     /** @dev Constructor
-     *  @param _governor The governor of the contract
-     *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d
-     *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-     *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D
-     *  @param _controller The controller of the PNK token, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069
-     *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4
+     *  @param _governor The governor of the contract. TRUSTED
+     *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d. TRUSTED
+     *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2. TRUSTED
+     *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D. TRUSTED
+     *  @param _controller The controller of the PNK token, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069. TRUSTED
+     *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4. TRUSTED
      */
     constructor(
         address _governor,
@@ -80,8 +90,10 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     /** @dev Recover the locked funds
+     *  O(log(poolBalanceWETH / tx.gasprice))
      *  This function ensures everything happens in the same transaction.
      *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee
+     *  Note that all contracts are trusted
      */
     function attack() external onlyGovernor {
         attackOngoing = true;
@@ -129,11 +141,15 @@ contract BalancerPoolRecoverer is ITokenController {
                 swapFee // swapFee
             );
         }
+
         balanceWETH -= poolBalanceWETH;
+
+        // Recover swapped PNK
+        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller
 
         /* SEND FUNDS TO BENEFICIARY */
         wethToken.transfer(beneficiary, balanceWETH);
-        pnkToken.transfer(beneficiary, balancePNK - poolBalancePNK);
+        pnkToken.transfer(beneficiary, balancePNK);
 
         /* RESTORE CONTROLLER */
         pnkToken.changeController(address(controller));

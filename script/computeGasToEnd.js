@@ -89,9 +89,6 @@ if (process.argv.length !== 3) {
     currentDepth = log.depth
   }
 
-  // Record last log
-  const lastLog = logs[logs.length - 1]
-
   // Get index of last call to swapExactAmountIn
   logs.reverse()
   const lastIterationCallIndex =
@@ -117,16 +114,15 @@ if (process.argv.length !== 3) {
   }
 
   // Find first opcode outside the loop
-  logs.splice(0, lastIterationCallIndex)
-  const logOutIndex = logs.findIndex((log) => !opcodesBlacklist.has(log.context + "|" + log.pc))
+  const logOutIndex = logs.slice(lastIterationCallIndex).findIndex((log) => !opcodesBlacklist.has(log.context + "|" + log.pc)) + lastIterationCallIndex
 
-  // Find last GAS opcode before leaving the loop (gasleft())
-  logs.splice(logOutIndex)
-  logs.reverse()
-  const gasLog = logs.find((log) => log.op === "GAS")
+  // Find last GAS or GASPRICE opcode before leaving the loop (gasleft())
+  const gasLog = logs.slice(0, logOutIndex).reverse().find((log) => log.op === "GAS" || log.op === "GASPRICE")
 
-  console.log("Gas used from the loop's last `gasleft()` call to end of transaction:")
-  console.log("  This includes return to caller (Governor)")
-  console.log("  Remember caller still holds 1/64th of the gas it had before its call")
-  console.dir(lastLog.gas - gasLog.gas + lastLog.gasCost)
+  // Find call return
+  const callReturnIndex = logs.slice(logOutIndex).findIndex((log) => log.depth === logs[logOutIndex].depth - 1) + logOutIndex - 1
+
+  console.log("Gas used from the loop's last condition to end of the internal call")
+  console.log("  Remember caller still holds at least 1/64th of the gas it had before its call")
+  console.dir(gasLog.gas - logs[callReturnIndex].gas)
 })()

@@ -1,8 +1,4 @@
 /* global assert, before, contract, it */
-const settings = {
-  targetWethBalance: "1497869045760000000000", // 1,497.869 WETH
-  targetPnkBalance: "7481018020279440000000000" // 7,481,018.020 PNK
-}
 
 const BPool = artifacts.require("xBPool")
 const KlerosLiquid = artifacts.require("xKlerosLiquid")
@@ -59,25 +55,26 @@ contract("BalancerPoolRecoverer", (accounts) => {
     assert.equal(balance.toNumber(), 0)
   })
 
-  it("Next expected gain should be below minimum gain", async () => {
+  it("Next expected gain should be below minimum gain (about 0.001 WETH)", async () => {
     const expected = Number(BigInt(await wethToken.balanceOf(BPool.address)) / 3n)
     const gasPerIteration = await recoverer.gasPerIteration()
     const gasPrice = await Recoverer.defaults().gasPrice
     const minimum = Number(BigInt(gasPrice) * BigInt(gasPerIteration))
 
     assert.ok(expected < minimum)
+    assert.ok(Number(10n ** 15n) < minimum)
   })
 
   it("Beneficiary should have all the PNK", async () => {
     const balance = await pnkToken.balanceOf(addressOf.beneficiary)
-    assert.equal(balance.toString(), settings.targetPnkBalance)
+    assert.equal(balance.toString(), "7481018020279440000000000") // 7,481,018.020 PNK
   })
 
   it("Beneficiary and pool should share all the WETH", async () => {
     const beneficiaryBalance = await wethToken.balanceOf(addressOf.beneficiary)
     const poolBalance = await wethToken.balanceOf(BPool.address)
     const sum = beneficiaryBalance.add(poolBalance)
-    assert.equal(sum.toString(), settings.targetWethBalance)
+    assert.equal(sum.toString(), "1497869045760000000000") // 1,497.869 WETH
   })
 
   it("PNK's controller should be reset", async () => {
