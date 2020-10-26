@@ -23,7 +23,7 @@ contract BalancerPoolRecoverer is ITokenController {
 
     // Constants
     uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop
-    uint256 constant gasToEnd = 146221; // Gas consumed after the loop
+    uint256 constant gasToEnd = gasPerIteration + 146221; // Gas consumed by one iteration + gas consumed after the loop
     uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
 
     // Contracts and addresses to act on (immutable)
