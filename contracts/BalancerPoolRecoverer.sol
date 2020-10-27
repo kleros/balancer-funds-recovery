@@ -16,15 +16,15 @@ import "./dependencies/ITokenController.sol";
 import "./dependencies/IBPool.sol";
 
 /** @title BalancerPoolRecoverer
-  * @dev The contract used to recover funds locked in a Balancer Pool
+  * @dev The contract used to recover funds locked in a Balancer Pool.
   */
 contract BalancerPoolRecoverer is ITokenController {
     /* *** Variables *** */
 
     // Constants
-    uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop
-    uint256 constant gasToEnd = gasPerIteration + 146221; // Gas consumed by one iteration + gas consumed after the loop
-    uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic
+    uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop.
+    uint256 constant gasToEnd = gasPerIteration + 146221; // Gas consumed by one iteration + gas consumed after the loop.
+    uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic.
 
     // Contracts and addresses to act on (immutable)
     address immutable public governor;
@@ -35,7 +35,7 @@ contract BalancerPoolRecoverer is ITokenController {
     address immutable public beneficiary;
 
     // Storage
-    bool attackOngoing; // Control TokenController functionality (block transfers by default)
+    bool attackOngoing; // Control TokenController functionality (block transfers by default).
     uint256 initiateRestoreControllerTimestamp;
 
 
@@ -46,13 +46,15 @@ contract BalancerPoolRecoverer is ITokenController {
         _;
     }
 
-    /** @dev Constructor
-     *  @param _governor The governor of the contract. TRUSTED
-     *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d. TRUSTED
-     *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2. TRUSTED
-     *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D. TRUSTED
-     *  @param _controller The controller of the PNK token, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069. TRUSTED
-     *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4. TRUSTED
+    /* *** Functions *** */
+
+    /** @dev Constructs the recoverer.
+     *  @param _governor The governor of the contract. TRUSTED.
+     *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d. TRUSTED.
+     *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2. TRUSTED.
+     *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D. TRUSTED.
+     *  @param _controller The controller of the PNK token, at 0x988b3A538b618C7A603e1c11Ab82Cd16dbE28069. TRUSTED.
+     *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4. TRUSTED.
      */
     constructor(
         address _governor,
@@ -70,9 +72,9 @@ contract BalancerPoolRecoverer is ITokenController {
         beneficiary = _beneficiary;
     }
 
-    /** @dev Ask for PNK token's controller to be restored
+    /** @dev Ask for PNK token's controller to be restored.
      *  Safeguard if the attack does not work.
-     *  Note that this gives one hour for the attack to be executed
+     *  Note that this gives one hour for the attack to be executed.
      */
     function initiateRestoreController() external {
         require(initiateRestoreControllerTimestamp == 0);
@@ -80,20 +82,20 @@ contract BalancerPoolRecoverer is ITokenController {
         initiateRestoreControllerTimestamp = block.timestamp;
     }
 
-    /** @dev Restore the PNK token's controller
-     *  In case the attack cannot be executed
-     *  Can be called by the governor, or by anyone one hour after initiateRestoreController
+    /** @dev Restore the PNK token's controller.
+     *  In case the attack cannot be executed.
+     *  Can be called by the governor, or by anyone one hour after initiateRestoreController.
      */
     function restoreController() external {
         require(msg.sender == address(governor) || initiateRestoreControllerTimestamp + 1 hours < block.timestamp);
         pnkToken.changeController(address(controller));
     }
 
-    /** @dev Recover the locked funds
-     *  O(log(poolBalanceWETH / tx.gasprice))
+    /** @dev Recover the locked funds.
+     *  O(log(poolBalanceWETH / tx.gasprice)).
      *  This function ensures everything happens in the same transaction.
-     *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee
-     *  Note that all contracts are trusted
+     *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee.
+     *  Note that all contracts are trusted.
      */
     function attack() external onlyGovernor {
         attackOngoing = true;
@@ -106,7 +108,7 @@ contract BalancerPoolRecoverer is ITokenController {
         uint256 swapFee = bpool.getSwapFee();
 
         /* PULL PNK */
-        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK - 2); // Need to be the controller
+        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK - 2); // Need to be the controller.
         bpool.gulp(address(pnkToken));
         pnkToken.approve(address(bpool), poolBalancePNK - 2);
         poolBalancePNK = 2;
@@ -120,7 +122,7 @@ contract BalancerPoolRecoverer is ITokenController {
             swapFee // swapFee
         );
 
-        // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself
+        // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself.
         while (nextAmountOut > gasPerIteration * tx.gasprice && gasleft() > gasToEnd) {
             poolBalanceWETH -= nextAmountOut;
             poolBalancePNK += nextAmountIn;
@@ -144,8 +146,8 @@ contract BalancerPoolRecoverer is ITokenController {
 
         balanceWETH -= poolBalanceWETH;
 
-        // Recover swapped PNK
-        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller
+        // Recover swapped PNK.
+        pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller.
 
         /* SEND FUNDS TO BENEFICIARY */
         wethToken.transfer(beneficiary, balanceWETH);
@@ -155,7 +157,7 @@ contract BalancerPoolRecoverer is ITokenController {
         pnkToken.changeController(address(controller));
     }
 
-    // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only
+    // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only.
     function proxyPayment(address /*_owner*/) override public payable returns (bool) {
         return false;
     }
@@ -166,7 +168,7 @@ contract BalancerPoolRecoverer is ITokenController {
         return true;
     }
 
-    // Code taken and adapted from https://github.com/balancer-labs/balancer-core
+    // Code taken and adapted from https://github.com/balancer-labs/balancer-core.
     function calcOutGivenIn(
         uint256 tokenBalanceIn,
         uint256 tokenBalanceOut,
