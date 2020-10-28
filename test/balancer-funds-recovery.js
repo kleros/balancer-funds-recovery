@@ -12,13 +12,11 @@ contract("BalancerPoolRecoverer", (accounts) => {
   let pool
   let wethToken
   let pnkToken
-  let recoverer
 
   before("Show balances", async () => {
     pool = await BPool.deployed()
     wethToken = await WethToken.deployed()
     pnkToken = await PnkToken.deployed()
-    recoverer = await Recoverer.deployed()
 
     const accountList = [
       { address: addressOf.deployer, name: "Deployer" },
@@ -55,19 +53,15 @@ contract("BalancerPoolRecoverer", (accounts) => {
     assert.equal(balance.toNumber(), 0)
   })
 
-  it("Next expected gain should be below minimum gain (about 0.001 WETH)", async () => {
-    const expected = Number(BigInt(await wethToken.balanceOf(BPool.address)) / 3n)
-    const gasPerIteration = await recoverer.gasPerIteration()
-    const gasPrice = await Recoverer.defaults().gasPrice
-    const minimum = Number(BigInt(gasPrice) * BigInt(gasPerIteration))
-
-    assert.ok(expected < minimum)
-    assert.ok(Number(10n ** 15n) < minimum)
-  })
-
   it("Beneficiary should have all the PNK", async () => {
     const balance = await pnkToken.balanceOf(addressOf.beneficiary)
     assert.equal(balance.toString(), "7481018020279440000000000") // 7,481,018.020 PNK
+  })
+
+  it("Beneficiary should have almost all the WETH", async () => {
+    const beneficiaryBalance = await wethToken.balanceOf(addressOf.beneficiary)
+    const poolBalance = await wethToken.balanceOf(BPool.address)
+    assert.ok(Number(beneficiaryBalance) / Number(poolBalance) > 1.5 ** 31)
   })
 
   it("Beneficiary and pool should share all the WETH", async () => {

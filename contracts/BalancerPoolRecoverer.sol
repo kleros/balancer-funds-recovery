@@ -1,6 +1,6 @@
 /**
  * @authors: [@nix1g]
- * @reviewers: [@clesaege, @ferittuncer, @fnanni-0]
+ * @reviewers: [@clesaege*, @ferittuncer*, @fnanni-0*]
  * @auditors: []
  * @bounties: []
  * @deployments: []
@@ -21,10 +21,7 @@ import "./dependencies/IBPool.sol";
 contract BalancerPoolRecoverer is ITokenController {
     /* *** Variables *** */
 
-    // Constants
-    uint256 constant public gasPerIteration = 90854; // Gas consumed by one iteration of the main loop.
-    uint256 constant gasToEnd = gasPerIteration + 146221; // Gas consumed by one iteration + gas consumed after the loop.
-    uint256 constant BONE = 10 ** 18; // Balancer's one (1) in fixed point arithmetic.
+    uint256 constant public ITERATION_COUNT = 32; // The maximum number of swaps to make.
 
     // Contracts and addresses to act on (immutable)
     address immutable public governor;
@@ -92,9 +89,8 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     /** @dev Recover the locked funds.
-     *  O(log(poolBalanceWETH / tx.gasprice)).
      *  This function ensures everything happens in the same transaction.
-     *  Note that this function requires a high gas limit and consumes more gas the lower the gas fee.
+     *  Note that this function requires a high gas limit.
      *  Note that all contracts are trusted.
      */
     function attack() external onlyGovernor {
@@ -105,7 +101,6 @@ contract BalancerPoolRecoverer is ITokenController {
         uint256 poolBalancePNK = pnkToken.balanceOf(address(bpool));
         uint256 balanceWETH = poolBalanceWETH;
         uint256 balancePNK = poolBalancePNK;
-        uint256 swapFee = bpool.getSwapFee();
 
         /* PULL PNK */
         pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK - 2); // Need to be the controller.
@@ -114,34 +109,20 @@ contract BalancerPoolRecoverer is ITokenController {
         poolBalancePNK = 2;
 
         /* PULL WETH (A.K.A ARBITRATION) */
-        uint256 nextAmountIn  = 1; // poolBalancePNK / 2
-        uint256 nextAmountOut = calcOutGivenIn(
-            poolBalancePNK, // tokenBalanceIn
-            poolBalanceWETH, // tokenBalanceOut
-            nextAmountIn, // tokenAmountIn
-            swapFee // swapFee
-        );
 
         // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself.
-        while (nextAmountOut > gasPerIteration * tx.gasprice && gasleft() > gasToEnd) {
-            poolBalanceWETH -= nextAmountOut;
-            poolBalancePNK += nextAmountIn;
-
-            bpool.swapExactAmountIn(
+        for (uint256 _ = 0; _ < ITERATION_COUNT; _++) {
+            uint256 tokenAmountIn = poolBalancePNK / 2;
+            (uint256 tokenAmoutOut, ) = bpool.swapExactAmountIn(
                 address(pnkToken), // tokenIn
-                nextAmountIn, // tokenAmountIn
+                tokenAmountIn, // tokenAmountIn
                 address(wethToken), // tokenOut
                 0, // minAmountOut
                 uint256(-1) // maxPrice
             );
 
-            nextAmountIn  = poolBalancePNK / 2;
-            nextAmountOut = calcOutGivenIn(
-                poolBalancePNK, // tokenBalanceIn
-                poolBalanceWETH, // tokenBalanceOut
-                nextAmountIn, // tokenAmountIn
-                swapFee // swapFee
-            );
+            poolBalanceWETH -= tokenAmoutOut;
+            poolBalancePNK += tokenAmountIn;
         }
 
         balanceWETH -= poolBalanceWETH;
@@ -166,36 +147,5 @@ contract BalancerPoolRecoverer is ITokenController {
     }
     function onApprove(address /*_owner*/, address /*_spender*/, uint256 /*_amount*/) override public returns (bool) {
         return true;
-    }
-
-    // Code taken and adapted from https://github.com/balancer-labs/balancer-core.
-    function calcOutGivenIn(
-        uint256 tokenBalanceIn,
-        uint256 tokenBalanceOut,
-        uint256 tokenAmountIn,
-        uint256 swapFee
-    )
-        internal pure returns (uint256)
-    {
-        uint256 adjustedIn = bmul(tokenAmountIn, BONE - swapFee);
-        uint256 y = bdiv(tokenBalanceIn, tokenBalanceIn + adjustedIn);
-        uint256 bar = BONE - y;
-        return bmul(tokenBalanceOut, bar);
-    }
-
-    function bmul(uint256 a, uint256 b)
-        internal pure returns (uint256)
-    {
-        uint256 c0 = a * b;
-        uint256 c1 = c0 + (BONE / 2);
-        return c1 / BONE;
-    }
-
-    function bdiv(uint256 a, uint256 b)
-        internal pure returns (uint256)
-    {
-        uint256 c0 = a * BONE;
-        uint256 c1 = c0 + (b / 2);
-        return c1 / b;
     }
 }
