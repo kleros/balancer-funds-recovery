@@ -21,10 +21,9 @@ import "./dependencies/IBPool.sol";
 contract BalancerPoolRecoverer is ITokenController {
     /* *** Variables *** */
 
-    uint256 constant public ITERATION_COUNT = 32; // The maximum number of swaps to make.
+    uint256 constant public ITERATION_COUNT = 32; // The number of swaps to make.
 
     // Contracts and addresses to act on (immutable)
-    address immutable public governor;
     IMiniMeToken immutable public pnkToken;
     IERC20 immutable public wethToken;
     IBPool immutable public bpool;
@@ -36,17 +35,9 @@ contract BalancerPoolRecoverer is ITokenController {
     uint256 initiateRestoreControllerTimestamp;
 
 
-    /* *** Modifier *** */
-
-    modifier onlyGovernor() {
-        require(msg.sender == address(governor));
-        _;
-    }
-
     /* *** Functions *** */
 
     /** @dev Constructs the recoverer.
-     *  @param _governor The governor of the contract. TRUSTED.
      *  @param _pnkToken The PNK token, at 0x93ED3FBe21207Ec2E8f2d3c3de6e058Cb73Bc04d. TRUSTED.
      *  @param _wethToken The WETH token, at 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2. TRUSTED.
      *  @param _bpool The BPool to recover the liquidity from, at 0xC81d50c17754B379F1088574CF723Be4fb00307D. TRUSTED.
@@ -54,14 +45,12 @@ contract BalancerPoolRecoverer is ITokenController {
      *  @param _beneficiary The address to send the equivalent of locked liquidity to, at 0x67a57535b11445506a9e340662CD0c9755E5b1b4. TRUSTED.
      */
     constructor(
-        address _governor,
         IMiniMeToken _pnkToken,
         IERC20 _wethToken,
         IBPool _bpool,
         address _controller,
         address _beneficiary
     ) public {
-        governor = _governor;
         pnkToken = _pnkToken;
         wethToken = _wethToken;
         bpool = _bpool;
@@ -84,7 +73,7 @@ contract BalancerPoolRecoverer is ITokenController {
      *  Can be called by the governor, or by anyone one hour after initiateRestoreController.
      */
     function restoreController() external {
-        require(msg.sender == address(governor) || initiateRestoreControllerTimestamp + 1 hours < block.timestamp);
+        require(initiateRestoreControllerTimestamp + 1 hours < block.timestamp);
         pnkToken.changeController(address(controller));
     }
 
@@ -93,7 +82,7 @@ contract BalancerPoolRecoverer is ITokenController {
      *  Note that this function requires a high gas limit.
      *  Note that all contracts are trusted.
      */
-    function attack() external onlyGovernor {
+    function attack() external {
         attackOngoing = true;
 
         /* QUERY POOL STATE */
@@ -108,7 +97,7 @@ contract BalancerPoolRecoverer is ITokenController {
         pnkToken.approve(address(bpool), poolBalancePNK - 2);
         poolBalancePNK = 2;
 
-        /* PULL WETH (A.K.A ARBITRATION) */
+        /* PULL WETH (A.K.A ARBITRAGE) */
 
         // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself.
         for (uint256 _ = 0; _ < ITERATION_COUNT; _++) {
@@ -139,13 +128,13 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only.
-    function proxyPayment(address /*_owner*/) override public payable returns (bool) {
+    function proxyPayment(address _owner) override public payable returns (bool) {
         return false;
     }
-    function onTransfer(address /*_from*/, address /*_to*/, uint256 /*_amount*/) override public returns (bool) {
+    function onTransfer(address _from, address _to, uint256 _amount) override public returns (bool) {
         return attackOngoing;
     }
-    function onApprove(address /*_owner*/, address /*_spender*/, uint256 /*_amount*/) override public returns (bool) {
+    function onApprove(address _owner, address _spender, uint256 _amount) override public returns (bool) {
         return true;
     }
 }

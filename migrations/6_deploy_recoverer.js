@@ -9,7 +9,6 @@ module.exports = function (deployer, network, accounts) {
   const addressOf = require("./utils/addressOf")(accounts)
   deployer.deploy(
     Recoverer,
-    Governor.address,
     PnkToken.address,
     WethToken.address,
     BPool.address,
