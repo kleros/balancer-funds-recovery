@@ -27,10 +27,10 @@ module.exports = function (deployer) {
       ).encodeABI(),
       hash: undefined
     },
-    attack: {
+    recovery: {
       target: Recoverer.address,
       value: 0,
-      data: web3Recoverer.methods["attack()"]().encodeABI(),
+      data: web3Recoverer.methods["recover()"]().encodeABI(),
       hash: undefined
     }
   }
@@ -42,15 +42,15 @@ module.exports = function (deployer) {
     )
   }
 
-  if (BigInt(txs.transferRights.hash) < BigInt(txs.attack.hash)) {
+  if (BigInt(txs.transferRights.hash) < BigInt(txs.recovery.hash)) {
     deployer
       .then(async () => (governor = await Governor.deployed()))
       .then(() =>
         governor.submitList(
-          [txs.transferRights.target, txs.attack.target],
-          [txs.transferRights.value, txs.attack.value],
-          txs.transferRights.data + txs.attack.data.slice(2),
-          [txs.transferRights.data.length / 2 - 1, txs.attack.data.length / 2 - 1],
+          [txs.transferRights.target, txs.recovery.target],
+          [txs.transferRights.value, txs.recovery.value],
+          txs.transferRights.data + txs.recovery.data.slice(2),
+          [txs.transferRights.data.length / 2 - 1, txs.recovery.data.length / 2 - 1],
           "Recover BPool's funds"
         )
       )
@@ -62,10 +62,10 @@ module.exports = function (deployer) {
       .then(async () => (governor = await Governor.deployed()))
       .then(() =>
         governor.submitList(
-          [txs.attack.target, txs.transferRights.target],
-          [txs.attack.value, txs.transferRights.value],
-          txs.attack.data + txs.transferRights.data.slice(2),
-          [txs.attack.data.length / 2 - 1, txs.transferRights.data.length / 2 - 1],
+          [txs.recovery.target, txs.transferRights.target],
+          [txs.recovery.value, txs.transferRights.value],
+          txs.recovery.data + txs.transferRights.data.slice(2),
+          [txs.recovery.data.length / 2 - 1, txs.transferRights.data.length / 2 - 1],
           "Recover BPool's funds"
         )
       )

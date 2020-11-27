@@ -7,7 +7,7 @@ const web3 = new (require("web3"))(RPC_ENDPOINT)
 web3.eth.debug = new (require("web3-eth-debug").Debug)(web3.eth.currentProvider)
 
 if (process.argv.length !== 3) {
-  console.error(`Usage: ${path.basename(process.argv[1])} <attack_tx_hash>`)
+  console.error(`Usage: ${path.basename(process.argv[1])} <recovery_tx_hash>`)
   process.exit(1)
 }
 
@@ -53,11 +53,11 @@ if (process.argv.length !== 3) {
     }
 
     const Governor = new web3.eth.Contract(GOVERNOR_ABI, tx.to)
-    const attackTx = await Governor.methods
+    const recoveryTx = await Governor.methods
       .getTransactionInfo(0, tx.input[2 + 2 * (4 + 0x20 * 3) - 1] - 1)
       .call()
 
-    const Recoverer = new web3.eth.Contract(RECOVERER_ABI, attackTx.target)
+    const Recoverer = new web3.eth.Contract(RECOVERER_ABI, recoveryTx.target)
     poolAddress = await Recoverer.methods.bpool().call()
   } catch (error) {
     console.error(`RPC should be running at ${RPC_ENDPOINT}`)

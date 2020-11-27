@@ -22,7 +22,7 @@ contract("BalancerPoolRecoverer", (accounts) => {
       { address: addressOf.deployer, name: "Deployer" },
       { address: addressOf.other, name: "Other" },
       { address: addressOf.beneficiary, name: "Beneficiary" },
-      { address: addressOf.attacker, name: "Attacker" },
+      { address: addressOf.recovererDeployer, name: "Recoverer Deployer" },
       { address: BPool.address, name: "BPool" },
       { address: Recoverer.address, name: "Recoverer" }
     ]

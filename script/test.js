@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-/* This script is used to test the attack on a fork of mainnet
+/* This script is used to test the recovery on a fork of mainnet
  * In particular:
  *  - "0x334F12AfB7D8740868bE04719639616533075234" must be unlocked
  *  - "0x334F12AfB7D8740868bE04719639616533075234" must still be KlerosLiquid's governor
@@ -31,15 +31,15 @@ let transaction
   const KlerosLiquid = new web3.eth.Contract(klerosLiquid.abi, klerosLiquid.address)
 
   // Get a funded account
-  let attacker
+  let deployer
   const accounts = await web3.eth.getAccounts()
   for (let account of accounts) {
     const balance = BigInt(await web3.eth.getBalance(account))
     if (balance > 10n ** 18n) {
       // Account must be funded with at least 1 ETH
-      attacker = account
+      deployer = account
       console.log(
-        `Using account ${attacker} (${web3.utils.fromWei(balance.toString(), "ether")} ETH)`
+        `Using account ${deployer} (${web3.utils.fromWei(balance.toString(), "ether")} ETH)`
       )
       break
     }
@@ -53,7 +53,7 @@ let transaction
   const GovernorFactory = new web3.eth.Contract(governor.abi)
   console.log("Deploying mock governor...")
   const Governor = await GovernorFactory.deploy({ data: governor.bytecode }).send({
-    from: attacker,
+    from: deployer,
     gasPrice: 20000000000,
     gas: 4000000
   })
@@ -84,7 +84,7 @@ let transaction
       "0x67a57535b11445506a9e340662CD0c9755E5b1b4"
     ]
   }).send({
-    from: attacker,
+    from: deployer,
     gasPrice: 20000000000,
     gas: 4000000
   })
@@ -103,10 +103,10 @@ let transaction
         .encodeABI(),
       hash: undefined
     },
-    attack: {
+    recovery: {
       target: recoverer.address,
       value: 0,
-      data: Recoverer.methods.attack().encodeABI(),
+      data: Recoverer.methods.recover().encodeABI(),
       hash: undefined
     }
   }
@@ -118,20 +118,20 @@ let transaction
     )
   }
 
-  // Trigger attack
-  console.log("=== ATTACK ===")
-  if (BigInt(txs.transferRights.hash) < BigInt(txs.attack.hash)) {
+  // Trigger recovery
+  console.log("=== RECOVERY ===")
+  if (BigInt(txs.transferRights.hash) < BigInt(txs.recovery.hash)) {
     console.log("Submit list (case 1)")
     transaction = await Governor.methods
       .submitList(
-        [txs.transferRights.target, txs.attack.target],
-        [txs.transferRights.value, txs.attack.value],
-        txs.transferRights.data + txs.attack.data.slice(2),
-        [txs.transferRights.data.length / 2 - 1, txs.attack.data.length / 2 - 1],
+        [txs.transferRights.target, txs.recovery.target],
+        [txs.transferRights.value, txs.recovery.value],
+        txs.transferRights.data + txs.recovery.data.slice(2),
+        [txs.transferRights.data.length / 2 - 1, txs.recovery.data.length / 2 - 1],
         "Recover BPool's funds"
       )
       .send({
-        from: attacker,
+        from: deployer,
         gasPrice: 20000000000,
         gas: 4000000
       })
@@ -140,7 +140,7 @@ let transaction
 
     console.log("Trigger")
     await Governor.methods.executeTransactionList(0, 0, 2).send({
-      from: attacker,
+      from: deployer,
       gasPrice: 20000000000,
       gas: 4000000
     })
@@ -150,14 +150,14 @@ let transaction
     console.log("Submit list (case 2)")
     transaction = await Governor.methods
       .submitList(
-        [txs.attack.target, txs.transferRights.target],
-        [txs.attack.value, txs.transferRights.value],
-        txs.attack.data + txs.transferRights.data.slice(2),
-        [txs.attack.data.length / 2 - 1, txs.transferRights.data.length / 2 - 1],
+        [txs.recovery.target, txs.transferRights.target],
+        [txs.recovery.value, txs.transferRights.value],
+        txs.recovery.data + txs.transferRights.data.slice(2),
+        [txs.recovery.data.length / 2 - 1, txs.transferRights.data.length / 2 - 1],
         "Recover BPool's funds"
       )
       .send({
-        from: attacker,
+        from: deployer,
         gasPrice: 20000000000,
         gas: 4000000
       })
@@ -166,7 +166,7 @@ let transaction
 
     console.log("Trigger 1")
     await Governor.methods.executeTransactionList(0, 1, 1).send({
-      from: attacker,
+      from: deployer,
       gasPrice: 20000000000,
       gas: 4000000
     })
@@ -174,7 +174,7 @@ let transaction
     assert(transaction.status)
     console.log("Trigger 2")
     await Governor.methods.executeTransactionList(0, 0, 1).send({
-      from: attacker,
+      from: deployer,
       gasPrice: 20000000000,
       gas: 4000000
     })

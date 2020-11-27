@@ -14,6 +14,6 @@ module.exports = function (deployer, network, accounts) {
     BPool.address,
     KlerosLiquid.address,
     addressOf.beneficiary,
-    { from: addressOf.attacker }
+    { from: addressOf.recovererDeployer }
   )
 }

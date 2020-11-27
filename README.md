@@ -18,7 +18,7 @@ These tokens are effectively burned. As (in theory) they are required to pull th
 
 However, as ([PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3c3de6e058cb73bc04d))'s balances can ultimately be controlled by governance, we can recover the funds.
 
-## The attack
+## The recovery
 
 The idea is to leverage the control over PNK's balances to trick the pool into overestimating the value of PNK over WETH.
 
@@ -32,7 +32,7 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 
 1. Deploy `BalancerPoolRecoverer`
 1. Transfer PNK's controller rights (in governor)
-1. Execute the attack
+1. Execute the recovery
     1. Pull all but 2 units of PNK from the pool (need to be PNK's controller)
     1. Swap PNK for WETH 32 times<sup>[1]</sup><sup>[2]</sup>
     1. Send the recovered funds to the beneficiary
@@ -47,7 +47,7 @@ The pool will be drained. Thus the associated liquidity tokens (BPT) will lose a
 
 ## Safeguard
 
-If for any reason the attack cannot be carried out, PNK's controller can still be restored with a 1 hour delay.
+If for any reason the recovery cannot be carried out, PNK's controller can still be restored with a 1 hour delay.
 
 ## Test
 

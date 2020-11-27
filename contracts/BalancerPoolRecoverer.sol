@@ -31,7 +31,7 @@ contract BalancerPoolRecoverer is ITokenController {
     address immutable public beneficiary;
 
     // Storage
-    bool attackOngoing; // Control TokenController functionality (block transfers by default).
+    bool recoveryOngoing; // Control TokenController functionality (block transfers by default).
     uint256 initiateRestoreControllerTimestamp;
 
 
@@ -59,8 +59,8 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     /** @dev Ask for PNK token's controller to be restored.
-     *  Safeguard if the attack does not work.
-     *  Note that this gives one hour for the attack to be executed.
+     *  Safeguard if the recovery does not work.
+     *  Note that this gives one hour for the recovery to be executed.
      */
     function initiateRestoreController() external {
         require(initiateRestoreControllerTimestamp == 0);
@@ -69,7 +69,7 @@ contract BalancerPoolRecoverer is ITokenController {
     }
 
     /** @dev Restore the PNK token's controller.
-     *  In case the attack cannot be executed.
+     *  In case the recovery cannot be executed.
      *  Can be called by the governor, or by anyone one hour after initiateRestoreController.
      */
     function restoreController() external {
@@ -82,8 +82,8 @@ contract BalancerPoolRecoverer is ITokenController {
      *  Note that this function requires a high gas limit.
      *  Note that all contracts are trusted.
      */
-    function attack() external {
-        attackOngoing = true;
+    function recover() external {
+        recoveryOngoing = true;
 
         /* QUERY POOL STATE */
         uint256 poolBalanceWETH = bpool.getBalance(address(wethToken));
@@ -127,12 +127,12 @@ contract BalancerPoolRecoverer is ITokenController {
         pnkToken.changeController(address(controller));
     }
 
-    // Since the attack contract is PNK's controller, it has to allow transfers and approvals during the attack only.
+    // Since the recovery contract is PNK's controller, it has to allow transfers and approvals during the recovery only.
     function proxyPayment(address _owner) override public payable returns (bool) {
         return false;
     }
     function onTransfer(address _from, address _to, uint256 _amount) override public returns (bool) {
-        return attackOngoing;
+        return recoveryOngoing;
     }
     function onApprove(address _owner, address _spender, uint256 _amount) override public returns (bool) {
         return true;
