@@ -86,10 +86,9 @@ contract BalancerPoolRecoverer is ITokenController {
         recoveryOngoing = true;
 
         /* QUERY POOL STATE */
-        uint256 poolBalanceWETH = bpool.getBalance(address(wethToken));
         uint256 poolBalancePNK = pnkToken.balanceOf(address(bpool));
-        uint256 balanceWETH = poolBalanceWETH;
         uint256 balancePNK = poolBalancePNK;
+        uint256 balanceWETH;
 
         /* PULL PNK */
         pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK - 2); // Need to be the controller.
@@ -110,11 +109,9 @@ contract BalancerPoolRecoverer is ITokenController {
                 uint256(-1) // maxPrice
             );
 
-            poolBalanceWETH -= tokenAmoutOut;
+            balanceWETH += tokenAmoutOut;
             poolBalancePNK += tokenAmountIn;
         }
-
-        balanceWETH -= poolBalanceWETH;
 
         // Recover swapped PNK.
         pnkToken.transferFrom(address(bpool), address(this), poolBalancePNK); // Need to be the controller.
