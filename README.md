@@ -34,12 +34,11 @@ Only the controller of [PNK](https://etherscan.io/token/0x93ed3fbe21207ec2e8f2d3
 1. Transfer PNK's controller rights (in governor)
 1. Execute the recovery
     1. Pull all but 2 units of PNK from the pool (need to be PNK's controller)
-    1. Swap PNK for WETH 32 times<sup>[1]</sup><sup>[2]</sup>
+    1. Swap PNK for WETH 32 times<sup>[1]</sup>
     1. Send the recovered funds to the beneficiary
     1. Restore PNK's controller to KlerosLiquid
 
 <sup>[1]</sup>32 was chosen so that the cost of an additional token swap does not outweight the gains from the swap.<br/>
-<sup>[2]</sup>The amount of PNK swapped back is negligeable (around <img src="https://latex.codecogs.com/svg.latex?{10}^{-12}"/> PNK), so recovering it is not worth the additional gas.
 
 ## Effects
 
