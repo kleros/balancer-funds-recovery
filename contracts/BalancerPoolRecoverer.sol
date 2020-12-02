@@ -1,6 +1,6 @@
 /**
  * @authors: [@nix1g]
- * @reviewers: [@clesaege*, @ferittuncer*, @fnanni-0*, @mtsalenc, @unknownunknown1]
+ * @reviewers: [@clesaege*, @ferittuncer, @fnanni-0*, @mtsalenc, @unknownunknown1]
  * @auditors: []
  * @bounties: []
  * @deployments: []
@@ -98,7 +98,6 @@ contract BalancerPoolRecoverer is ITokenController {
 
         /* PULL WETH (A.K.A ARBITRAGE) */
 
-        // Repeat as long as recovering the next WETH does not cost more in gas than the WETH itself.
         for (uint256 _ = 0; _ < ITERATION_COUNT; _++) {
             uint256 tokenAmountIn = poolBalancePNK / 2;
             (uint256 tokenAmoutOut, ) = bpool.swapExactAmountIn(
