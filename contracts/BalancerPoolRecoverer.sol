@@ -73,6 +73,7 @@ contract BalancerPoolRecoverer is ITokenController {
      *  Can be called by the governor, or by anyone one hour after initiateRestoreController.
      */
     function restoreController() external {
+        require(initiateRestoreControllerTimestamp != 0);
         require(initiateRestoreControllerTimestamp + 1 hours < block.timestamp);
         pnkToken.changeController(address(controller));
     }
@@ -98,7 +99,7 @@ contract BalancerPoolRecoverer is ITokenController {
 
         /* PULL WETH (A.K.A ARBITRAGE) */
 
-        for (uint256 _ = 0; _ < ITERATION_COUNT; _++) {
+        for (uint256 i = 0; i < ITERATION_COUNT; i++) {
             uint256 tokenAmountIn = poolBalancePNK / 2;
             (uint256 tokenAmoutOut, ) = bpool.swapExactAmountIn(
                 address(pnkToken), // tokenIn
